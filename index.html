@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Transport Membran 3D - Media Pembelajaran Interaktif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { overflow-x: hidden; touch-action: manipulation; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .glass { background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
+        .particle { position: absolute; border-radius: 50%; pointer-events: none; }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-15px); } }
+        .float-anim { animation: float 3s ease-in-out infinite; }
+        .slide-in { opacity: 0; transform: translateY(30px); transition: all 0.6s ease; }
+        .slide-in.active { opacity: 1; transform: translateY(0); }
+        #canvas-container { width: 100%; height: 350px; position: relative; }
+        @media(min-width: 768px) { #canvas-container { height: 500px; } }
+        .quiz-option { transition: all 0.2s ease; }
+        .quiz-option:active { transform: scale(0.98); }
+        .draggable-item { touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+        .draggable-item:active { cursor: grabbing; }
+        .drop-zone { min-height: 120px; transition: all 0.3s ease; }
+        .drop-zone.drag-over { border-color: #fbbf24 !important; background: rgba(251, 191, 36, 0.1) !important; }
+        .drop-zone.correct { border-color: #22c55e !important; background: rgba(34, 197, 94, 0.15) !important; }
+        .drop-zone.wrong { border-color: #ef4444 !important; background: rgba(239, 68, 68, 0.15) !important; }
+        .nav-link { position: relative; }
+        .nav-link::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 2px; background: #fbbf24; transition: width 0.3s; }
+        .nav-link:hover::after { width: 100%; }
+        .progress-bar { transition: width 0.5s ease; }
+        .btn-sim { transition: all 0.3s ease; }
+        .btn-sim:active { transform: scale(0.95); }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+
+        /* Mobile specific */
+        @media(max-width: 640px) {
+            .hero-title { font-size: 2rem !important; line-height: 1.2 !important; }
+            .hero-subtitle { font-size: 0.9rem !important; }
+            .section-title { font-size: 1.75rem !important; }
+            .sim-btn-text { font-size: 0.7rem; padding: 0.4rem 0.8rem; }
+            .quiz-option { padding: 0.75rem !important; }
+            .quiz-option span:first-child { width: 1.5rem !important; height: 1.5rem !important; font-size: 0.7rem !important; }
+            .drop-zone { min-height: 100px !important; padding: 0.75rem !important; }
+            .draggable-item { font-size: 0.75rem !important; padding: 0.4rem 0.8rem !important; }
+            .table-text { font-size: 0.65rem !important; padding: 0.5rem !important; }
+            .mobile-p-3 { padding: 0.75rem !important; }
+            .mobile-text-sm { font-size: 0.8rem !important; }
+        }
+
+        /* Touch feedback */
+        .touch-feedback { position: relative; overflow: hidden; }
+        .touch-feedback::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 0; height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+        .touch-feedback:active::after {
+            width: 200px; height: 200px;
+        }
+    </style>
+<base target="_blank">
+</head>
+<body class="bg-gray-900 text-white">
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass px-4 py-3 md:px-6 md:py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2 md:gap-3">
+                <div class="w-8 h-8 md:w-10 md:h-10 rounded-full gradient-bg flex items-center justify-center text-lg md:text-xl font-bold">🧬</div>
+                <h1 class="text-base md:text-xl font-bold">Transport Membran 3D</h1>
+            </div>
+            <button id="mobile-menu-btn" class="md:hidden text-white p-2" onclick="toggleMobileMenu()">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+            <div id="desktop-nav" class="hidden md:flex gap-6 text-sm font-medium">
+                <a href="#beranda" class="nav-link hover:text-yellow-400 transition">Beranda</a>
+                <a href="#materi" class="nav-link hover:text-yellow-400 transition">Materi</a>
+                <a href="#simulasi" class="nav-link hover:text-yellow-400 transition">Simulasi 3D</a>
+                <a href="#kuis" class="nav-link hover:text-yellow-400 transition">Kuis</a>
+                <a href="#game" class="nav-link hover:text-yellow-400 transition">Game</a>
+            </div>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden mt-4 pb-4 border-t border-white/10 pt-4">
+            <div class="flex flex-col gap-3 text-sm font-medium">
+                <a href="#beranda" class="py-2 px-4 hover:bg-white/10 rounded-lg transition" onclick="toggleMobileMenu()">🏠 Beranda</a>
+                <a href="#materi" class="py-2 px-4 hover:bg-white/10 rounded-lg transition" onclick="toggleMobileMenu()">📚 Materi</a>
+                <a href="#simulasi" class="py-2 px-4 hover:bg-white/10 rounded-lg transition" onclick="toggleMobileMenu()">🔬 Simulasi 3D</a>
+                <a href="#kuis" class="py-2 px-4 hover:bg-white/10 rounded-lg transition" onclick="toggleMobileMenu()">📝 Kuis</a>
+                <a href="#game" class="py-2 px-4 hover:bg-white/10 rounded-lg transition" onclick="toggleMobileMenu()">🎮 Game</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Beranda / Hero -->
+    <section id="beranda" class="min-h-screen flex items-center justify-center relative overflow-hidden pt-16 md:pt-20">
+        <div class="absolute inset-0 gradient-bg opacity-20"></div>
+        <div class="absolute inset-0" id="particles-bg"></div>
+
+        <div class="max-w-7xl mx-auto px-4 md:px-6 grid md:grid-cols-2 gap-8 md:gap-12 items-center relative z-10">
+            <div class="slide-in active text-center md:text-left order-2 md:order-1">
+                <div class="inline-block px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-yellow-500/20 text-yellow-400 text-xs md:text-sm font-semibold mb-3 md:mb-4">
+                    Media Pembelajaran Biologi Interaktif
+                </div>
+                <h1 class="hero-title text-4xl md:text-5xl lg:text-7xl font-bold leading-tight mb-4 md:mb-6">
+                    Jelajahi <span class="text-transparent bg-clip-text gradient-bg">Transport Membran</span> dalam 3D
+                </h1>
+                <p class="hero-subtitle text-gray-300 text-base md:text-lg mb-6 md:mb-8 leading-relaxed px-2 md:px-0">
+                    Pelajari mekanisme difusi, osmosis, dan transport aktif melalui visualisasi tiga dimensi yang interaktif. 
+                    Pahami bagaimana zat bergerak melintasi membran sel secara visual dan menarik.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center md:justify-start">
+                    <a href="#simulasi" class="px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full font-semibold hover:scale-105 transition transform shadow-lg shadow-blue-500/30 text-sm md:text-base text-center touch-feedback">
+                        Mulai Simulasi 🚀
+                    </a>
+                    <a href="#materi" class="px-6 py-3 md:px-8 md:py-4 glass rounded-full font-semibold hover:bg-white/20 transition text-sm md:text-base text-center touch-feedback">
+                        Pelajari Materi 📚
+                    </a>
+                </div>
+
+                <div class="mt-6 md:mt-8 flex flex-wrap justify-center md:justify-start gap-3 md:gap-6 text-xs md:text-sm text-gray-400">
+                    <div class="flex items-center gap-1.5 md:gap-2">
+                        <span class="w-2 h-2 bg-green-400 rounded-full"></span>
+                        <span>3 Jenis Transport</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 md:gap-2">
+                        <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
+                        <span>Simulasi Interaktif</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 md:gap-2">
+                        <span class="w-2 h-2 bg-purple-400 rounded-full"></span>
+                        <span>Kuis & Game</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="relative float-anim order-1 md:order-2">
+                <div class="relative w-full aspect-square max-w-xs md:max-w-md mx-auto">
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-500/30 to-purple-500/30 rounded-full blur-3xl"></div>
+                    <div id="hero-3d" class="w-full h-full rounded-2xl overflow-hidden shadow-2xl border border-white/10"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Materi Pembelajaran -->
+    <section id="materi" class="py-12 md:py-20 bg-gray-800/50">
+        <div class="max-w-7xl mx-auto px-4 md:px-6">
+            <div class="text-center mb-10 md:mb-16 slide-in">
+                <h2 class="section-title text-3xl md:text-4xl font-bold mb-3 md:mb-4">Materi Pembelajaran</h2>
+                <p class="text-gray-400 text-sm md:text-base max-w-2xl mx-auto px-4">
+                    Transport membran sel adalah proses keluar masuknya zat melalui membran sel untuk menjaga keseimbangan.
+                </p>
+            </div>
+
+            <!-- Transport Pasif -->
+            <div class="mb-8 md:mb-12 slide-in">
+                <div class="bg-gray-800 rounded-2xl p-5 md:p-8 border border-gray-700 card-hover">
+                    <div class="flex items-center gap-3 mb-4 md:mb-6">
+                        <div class="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center text-2xl md:text-3xl">🌊</div>
+                        <div>
+                            <h3 class="text-xl md:text-2xl font-bold text-blue-400">1. Transport Pasif</h3>
+                            <p class="text-xs md:text-sm text-gray-400">Tidak membutuhkan energi ATP</p>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4 md:gap-6">
+                        <div class="space-y-3 md:space-y-4">
+                            <div class="bg-blue-500/10 rounded-xl p-3 md:p-4 border border-blue-500/20">
+                                <h4 class="font-bold text-blue-300 mb-1 md:mb-2 text-sm md:text-base">📌 Karakteristik:</h4>
+                                <ul class="text-xs md:text-sm text-gray-300 space-y-1">
+                                    <li>• Tidak membutuhkan energi</li>
+                                    <li>• Mengikuti gradien konsentrasi (tinggi ke rendah)</li>
+                                    <li>• Zat bergerak secara spontan</li>
+                                </ul>
+                            </div>
+
+                            <div class="bg-gray-700/50 rounded-xl p-3 md:p-4">
+                                <h4 class="font-bold text-yellow-400 mb-1 md:mb-2 text-sm md:text-base">💡 Contoh:</h4>
+                                <ul class="text-xs md:text-sm text-gray-300 space-y-1">
+                                    <li>• <strong>Difusi:</strong> Perpindahan zat dari konsentrasi tinggi ke rendah tanpa energi. Contoh: pertukaran O₂ dan CO₂ di paru-paru, penyebaran bau parfum, teh celup dalam air.</li>
+                                    <li>• <strong>Osmosis:</strong> Perpindahan air melalui membran semipermeabel dari konsentrasi zat terlarut rendah ke tinggi.</li>
+                                    <li>• <strong>Difusi Terfasilitasi:</strong> Menggunakan protein transport (carrier/channel).</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 md:space-y-4">
+                            <div class="bg-green-500/10 rounded-xl p-3 md:p-4 border border-green-500/20">
+                                <h4 class="font-bold text-green-300 mb-1 md:mb-2 text-sm md:text-base">💧 Osmosis pada Sel:</h4>
+                                <div class="space-y-2 text-xs md:text-sm">
+                                    <div class="flex items-start gap-2">
+                                        <span class="text-green-400 mt-0.5">▸</span>
+                                        <div><strong>Hipotonik:</strong> Air masuk. Sel hewan → membesar & pecah (lisis). Sel tumbuhan → turgid (tidak pecah karena dinding sel).</div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <span class="text-green-400 mt-0.5">▸</span>
+                                        <div><strong>Isotonik:</strong> Normal dan stabil (hewan), flasid/layu ringan (tumbuhan).</div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <span class="text-green-400 mt-0.5">▸</span>
+                                        <div><strong>Hipertonik:</strong> Air keluar. Sel hewan → mengkerut (krenasi). Sel tumbuhan → plasmolisis & layu.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-purple-500/10 rounded-xl p-3 md:p-4 border border-purple-500/20">
+                                <h4 class="font-bold text-purple-300 mb-1 md:mb-2 text-sm md:text-base">🔬 Perbedaan Osmosis & Difusi:</h4>
+                                <ul class="text-xs md:text-sm text-gray-300 space-y-1">
+                                    <li>• <strong>Osmosis:</strong> Hanya air, melalui membran semipermeabel.</li>
+                                    <li>• <strong>Difusi:</strong> Semua zat, tidak selalu melalui membran.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 md:mt-6 bg-yellow-500/10 rounded-xl p-3 md:p-4 border border-yellow-500/20">
+                        <h4 class="font-bold text-yellow-300 mb-1 md:mb-2 text-sm md:text-base">🌍 Penerapan:</h4>
+                        <div class="grid md:grid-cols-2 gap-2 text-xs md:text-sm text-gray-300">
+                            <div><strong>Osmosis:</strong> Penyerapan air pada akar, sayuran segar saat direndam, pengawetan makanan.</div>
+                            <div><strong>Difusi:</strong> Pertukaran gas di paru-paru, penyebaran bau parfum, teh celup dalam air.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transport Aktif -->
+            <div class="mb-8 md:mb-12 slide-in">
+                <div class="bg-gray-800 rounded-2xl p-5 md:p-8 border border-gray-700 card-hover">
+                    <div class="flex items-center gap-3 mb-4 md:mb-6">
+                        <div class="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center text-2xl md:text-3xl">⚡</div>
+                        <div>
+                            <h3 class="text-xl md:text-2xl font-bold text-purple-400">2. Transport Aktif</h3>
+                            <p class="text-xs md:text-sm text-gray-400">Membutuhkan energi ATP</p>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4 md:gap-6">
+                        <div class="space-y-3 md:space-y-4">
+                            <div class="bg-purple-500/10 rounded-xl p-3 md:p-4 border border-purple-500/20">
+                                <h4 class="font-bold text-purple-300 mb-1 md:mb-2 text-sm md:text-base">📌 Karakteristik:</h4>
+                                <ul class="text-xs md:text-sm text-gray-300 space-y-1">
+                                    <li>• Membutuhkan energi (ATP)</li>
+                                    <li>• Melawan gradien konsentrasi (rendah ke tinggi)</li>
+                                    <li>• Menggunakan protein pompa</li>
+                                </ul>
+                            </div>
+
+                            <div class="bg-gray-700/50 rounded-xl p-3 md:p-4">
+                                <h4 class="font-bold text-yellow-400 mb-1 md:mb-2 text-sm md:text-base">💡 Contoh:</h4>
+                                <ul class="text-xs md:text-sm text-gray-300 space-y-1">
+                                    <li>• <strong>Pompa Na⁺/K⁺-ATPase:</strong> Memompa 3 Na⁺ keluar dan 2 K⁺ masuk sel.</li>
+                                    <li>• <strong>SGLT1 (Symport):</strong> Menggunakan gradien Na⁺ untuk mengangkut glukosa.</li>
+                                    <li>• <strong>Antiport:</strong> Dua zat bergerak berlawanan arah.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 md:space-y-4">
+                            <div class="bg-orange-500/10 rounded-xl p-3 md:p-4 border border-orange-500/20">
+                                <h4 class="font-bold text-orange-300 mb-1 md:mb-2 text-sm md:text-base">🔬 Perbedaan Primer & Sekunder:</h4>
+                                <div class="space-y-2 text-xs md:text-sm text-gray-300">
+                                    <div class="flex items-start gap-2">
+                                        <span class="text-orange-400 mt-0.5">▸</span>
+                                        <div><strong>Primer:</strong> Menggunakan ATP langsung (contoh: Na⁺/K⁺ pump).</div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <span class="text-orange-400 mt-0.5">▸</span>
+                                        <div><strong>Sekunder:</strong> Menggunakan gradien ion yang sudah ada (contoh: SGLT1).</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-pink-500/10 rounded-xl p-3 md:p-4 border border-pink-500/20">
+                                <h4 class="font-bold text-pink-300 mb-1 md:mb-2 text-sm md:text-base">🌍 Contoh Biologis:</h4>
+                                <ul class="text-xs md:text-sm text-gray-300 space-y-1">
+                                    <li>• Absorpsi glukosa di usus halus</li>
+                                    <li>• Potensial aksi pada neuron</li>
+                                    <li>• Reabsorpsi di ginjal</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transport Vesikuler -->
+            <div class="mb-8 md:mb-12 slide-in">
+                <div class="bg-gray-800 rounded-2xl p-5 md:p-8 border border-gray-700 card-hover">
+                    <div class="flex items-center gap-3 mb-4 md:mb-6">
+                        <div class="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-pink-500/20 flex items-center justify-center text-2xl md:text-3xl">📦</div>
+                        <div>
+                            <h3 class="text-xl md:text-2xl font-bold text-pink-400">3. Transport Vesikuler</h3>
+                            <p class="text-xs md:text-sm text-gray-400">Menggunakan vesikel</p>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4 md:gap-6">
+                        <div class="bg-pink-500/10 rounded-xl p-3 md:p-4 border border-pink-500/20">
+                            <h4 class="font-bold text-pink-300 mb-1 md:mb-2 text-sm md:text-base">📥 Endositosis (Masuk):</h4>
+                            <p class="text-xs md:text-sm text-gray-300">Membran sel membentuk lekukan, menangkap zat dari luar, dan membentuk vesikel yang masuk ke dalam sel.</p>
+                        </div>
+
+                        <div class="bg-pink-500/10 rounded-xl p-3 md:p-4 border border-pink-500/20">
+                            <h4 class="font-bold text-pink-300 mb-1 md:mb-2 text-sm md:text-base">📤 Eksositosis (Keluar):</h4>
+                            <p class="text-xs md:text-sm text-gray-300">Vesikel di dalam sel bergerak ke membran, menyatu dengannya, dan melepaskan isi ke luar sel.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparison Table -->
+            <div class="slide-in">
+                <div class="bg-gray-800 rounded-2xl overflow-hidden border border-gray-700">
+                    <div class="p-4 md:p-6 border-b border-gray-700">
+                        <h3 class="text-lg md:text-2xl font-bold text-center">Tabel Perbandingan Jenis Transport</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs md:text-sm">
+                            <thead class="bg-gray-700/50">
+                                <tr>
+                                    <th class="px-3 md:px-6 py-3 md:py-4 text-left table-text">Aspek</th>
+                                    <th class="px-3 md:px-6 py-3 md:py-4 text-center text-blue-400 table-text">Transport Pasif</th>
+                                    <th class="px-3 md:px-6 py-3 md:py-4 text-center text-purple-400 table-text">Transport Aktif</th>
+                                    <th class="px-3 md:px-6 py-3 md:py-4 text-center text-pink-400 table-text">Transport Vesikuler</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                <tr class="hover:bg-gray-700/30 transition">
+                                    <td class="px-3 md:px-6 py-3 md:py-4 font-medium table-text">Energi ATP</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center text-red-400 table-text">Tidak</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center text-green-400 table-text">Ya</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center text-yellow-400 table-text">Ya</td>
+                                </tr>
+                                <tr class="hover:bg-gray-700/30 transition">
+                                    <td class="px-3 md:px-6 py-3 md:py-4 font-medium table-text">Gradien</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center table-text">Tinggi → Rendah</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center table-text">Rendah → Tinggi</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center table-text">Tidak spesifik</td>
+                                </tr>
+                                <tr class="hover:bg-gray-700/30 transition">
+                                    <td class="px-3 md:px-6 py-3 md:py-4 font-medium table-text">Protein</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center table-text">Opsional (channel/carrier)</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center table-text">Pump protein</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center table-text">Tidak</td>
+                                </tr>
+                                <tr class="hover:bg-gray-700/30 transition">
+                                    <td class="px-3 md:px-6 py-3 md:py-4 font-medium table-text">Contoh</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center table-text">Difusi, Osmosis</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center table-text">Na⁺/K⁺ pump</td>
+                                    <td class="px-3 md:px-6 py-3 md:py-4 text-center table-text">Endositosis, Eksositosis</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Simulasi 3D -->
+    <section id="simulasi" class="py-12 md:py-20 relative">
+        <div class="max-w-7xl mx-auto px-4 md:px-6">
+            <div class="text-center mb-8 md:mb-12 slide-in">
+                <h2 class="section-title text-3xl md:text-4xl font-bold mb-3 md:mb-4">Simulasi 3D Transport Membran</h2>
+                <p class="text-gray-400 text-sm md:text-base">Pilih jenis transport untuk melihat animasi 3D interaktif</p>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-2 md:gap-4 mb-6 md:mb-8 slide-in px-2">
+                <button onclick="setSimulation('diffusion')" id="btn-diffusion" class="sim-btn-text btn-sim px-4 py-2 md:px-6 md:py-3 rounded-full bg-blue-500/20 border border-blue-500/50 font-semibold text-blue-300 active text-xs md:text-sm">
+                    🌊 Difusi
+                </button>
+                <button onclick="setSimulation('osmosis')" id="btn-osmosis" class="sim-btn-text btn-sim px-4 py-2 md:px-6 md:py-3 rounded-full bg-gray-700 border border-gray-600 hover:bg-green-500/20 hover:border-green-500/50 font-semibold text-gray-300 text-xs md:text-sm">
+                    💧 Osmosis
+                </button>
+                <button onclick="setSimulation('active')" id="btn-active" class="sim-btn-text btn-sim px-4 py-2 md:px-6 md:py-3 rounded-full bg-gray-700 border border-gray-600 hover:bg-purple-500/20 hover:border-purple-500/50 font-semibold text-gray-300 text-xs md:text-sm">
+                    ⚡ Transport Aktif
+                </button>
+            </div>
+
+            <div class="relative bg-gray-800 rounded-2xl md:rounded-3xl overflow-hidden border border-gray-700 shadow-2xl slide-in">
+                <div id="canvas-container"></div>
+
+                <div class="absolute top-2 md:top-4 left-2 md:left-4 bg-black/60 backdrop-blur-md p-3 md:p-4 rounded-lg md:rounded-xl max-w-[200px] md:max-w-xs border border-white/10">
+                    <h4 id="sim-title" class="font-bold text-sm md:text-lg mb-1 md:mb-2 text-blue-400">Difusi Sederhana</h4>
+                    <p id="sim-desc" class="text-xs md:text-sm text-gray-300 leading-relaxed">
+                        Molekul kecil seperti O₂ dan CO₂ bergerak secara acak melintasi bilayer fosfolipid dari konsentrasi tinggi ke rendah tanpa energi.
+                    </p>
+                    <div class="mt-2 md:mt-3 flex items-center gap-2 text-[10px] md:text-xs flex-wrap">
+                        <span class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-yellow-400"></span>
+                        <span class="text-gray-400">Molekul</span>
+                        <span class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-blue-400 ml-1 md:ml-2"></span>
+                        <span class="text-gray-400">Fosfolipid</span>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-2 md:bottom-4 right-2 md:right-4 bg-black/60 backdrop-blur-md p-3 md:p-4 rounded-lg md:rounded-xl border border-white/10 max-w-[140px] md:max-w-none">
+                    <div class="text-[10px] md:text-xs font-semibold mb-1 md:mb-2 text-gray-400">Legenda:</div>
+                    <div class="space-y-1 text-[10px] md:text-xs">
+                        <div class="flex items-center gap-1.5 md:gap-2">
+                            <span class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500"></span>
+                            <span>Zat terlarut</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 md:gap-2">
+                            <span class="w-3 h-3 md:w-4 md:h-4 rounded-full bg-gradient-to-r from-blue-400 to-blue-600"></span>
+                            <span>Kepala fosfolipid</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 md:gap-2">
+                            <span class="w-3 h-2 md:w-4 md:h-2 rounded bg-gradient-to-r from-gray-400 to-gray-600"></span>
+                            <span>Ekor fosfolipid</span>
+                        </div>
+                        <div id="legend-protein" class="flex items-center gap-1.5 md:gap-2 hidden">
+                            <span class="w-3 h-3 md:w-4 md:h-4 rounded bg-gradient-to-r from-green-400 to-green-600"></span>
+                            <span>Protein transport</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-2 md:bottom-4 left-2 md:left-4 text-[10px] md:text-xs text-gray-500 bg-black/40 px-2 py-1 rounded">
+                    💡 Klik & drag putar • Scroll zoom
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- KUIS SECTION (Terpisah) -->
+    <section id="kuis" class="py-12 md:py-20 bg-gray-800/50">
+        <div class="max-w-4xl mx-auto px-4 md:px-6">
+            <div class="text-center mb-8 md:mb-12 slide-in">
+                <div class="inline-block px-4 py-2 rounded-full bg-blue-500/20 text-blue-400 text-sm font-semibold mb-3">
+                    📝 Evaluasi Pemahaman
+                </div>
+                <h2 class="section-title text-3xl md:text-4xl font-bold mb-3 md:mb-4">Kuis Transport Membran</h2>
+                <p class="text-gray-400 text-sm md:text-base">Uji pemahamanmu dengan soal pilihan ganda!</p>
+            </div>
+
+            <div class="bg-gray-800 rounded-2xl md:rounded-3xl p-5 md:p-8 border border-gray-700 shadow-2xl slide-in relative overflow-hidden">
+                <div class="mb-6 md:mb-8">
+                    <div class="flex justify-between text-xs md:text-sm text-gray-400 mb-2">
+                        <span>Soal <span id="progress-text">1/6</span></span>
+                        <span class="text-yellow-400 font-bold">⭐ <span id="score">0</span> poin</span>
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2">
+                        <div id="progress-bar" class="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full progress-bar" style="width: 16.6%"></div>
+                    </div>
+                </div>
+
+                <div id="quiz-content" class="min-h-[250px] md:min-h-[300px]">
+                    <div id="question-container">
+                        <h3 id="question-text" class="text-base md:text-xl font-semibold mb-4 md:mb-6 leading-relaxed">
+                            Perpindahan zat tanpa energi disebut...
+                        </h3>
+                        <div id="options-container" class="space-y-2 md:space-y-3">
+                            <!-- Options generated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="feedback" class="hidden mt-4 md:mt-6 p-3 md:p-4 rounded-xl border text-center">
+                    <p id="feedback-text" class="font-semibold text-sm md:text-base"></p>
+                    <button onclick="nextQuestion()" id="next-btn" class="mt-3 md:mt-4 px-5 py-2 md:px-6 md:py-2 bg-blue-500 rounded-full hover:bg-blue-600 transition text-sm font-semibold touch-feedback">
+                        Pertanyaan Selanjutnya →
+                    </button>
+                </div>
+
+                <div id="results" class="hidden text-center py-6 md:py-8">
+                    <div class="text-5xl md:text-6xl mb-3 md:mb-4">🏆</div>
+                    <h3 class="text-2xl md:text-3xl font-bold mb-2">Kuis Selesai!</h3>
+                    <p class="text-gray-400 mb-4 md:mb-6 text-sm md:text-base">Skor akhirmu:</p>
+                    <div class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text gradient-bg mb-4 md:mb-6" id="final-score">0/60</div>
+                    <div id="result-message" class="text-base md:text-lg mb-6 md:mb-8 text-gray-300 px-4"></div>
+                    <button onclick="restartQuiz()" class="px-6 py-3 md:px-8 md:py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full font-semibold hover:scale-105 transition text-sm md:text-base touch-feedback">
+                        Main Lagi 🔄
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- GAME SECTION (Terpisah) -->
+    <section id="game" class="py-12 md:py-20">
+        <div class="max-w-4xl mx-auto px-4 md:px-6">
+            <div class="text-center mb-8 md:mb-12 slide-in">
+                <div class="inline-block px-4 py-2 rounded-full bg-purple-500/20 text-purple-400 text-sm font-semibold mb-3">
+                    🎮 Latihan Interaktif
+                </div>
+                <h2 class="section-title text-3xl md:text-4xl font-bold mb-3 md:mb-4">Game: Klasifikasi Transport</h2>
+                <p class="text-gray-400 text-sm md:text-base">Seret setiap pernyataan ke kategori transport yang tepat!</p>
+            </div>
+
+            <div class="bg-gray-800 rounded-2xl md:rounded-3xl p-5 md:p-8 border border-gray-700 slide-in">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+                    <div class="drop-zone bg-blue-500/10 border-2 border-dashed border-blue-500/30 rounded-xl p-3 md:p-4" 
+                         ondrop="drop(event, 'passive')" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" data-category="passive">
+                        <h4 class="text-blue-400 font-bold text-center mb-1 md:mb-2 text-sm md:text-base">🌊 Transport Pasif</h4>
+                        <div class="text-[10px] md:text-xs text-center text-gray-500">Drop di sini</div>
+                    </div>
+                    <div class="drop-zone bg-green-500/10 border-2 border-dashed border-green-500/30 rounded-xl p-3 md:p-4" 
+                         ondrop="drop(event, 'osmosis')" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" data-category="osmosis">
+                        <h4 class="text-green-400 font-bold text-center mb-1 md:mb-2 text-sm md:text-base">💧 Osmosis</h4>
+                        <div class="text-[10px] md:text-xs text-center text-gray-500">Drop di sini</div>
+                    </div>
+                    <div class="drop-zone bg-purple-500/10 border-2 border-dashed border-purple-500/30 rounded-xl p-3 md:p-4" 
+                         ondrop="drop(event, 'active')" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" data-category="active">
+                        <h4 class="text-purple-400 font-bold text-center mb-1 md:mb-2 text-sm md:text-base">⚡ Transport Aktif</h4>
+                        <div class="text-[10px] md:text-xs text-center text-gray-500">Drop di sini</div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <p class="text-xs md:text-sm text-gray-400 mb-3 text-center">👇 Klik dan tahan, lalu seret ke kotak yang sesuai:</p>
+                    <div id="draggable-items" class="flex flex-wrap gap-2 md:gap-3 justify-center">
+                        <div class="draggable-item bg-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-full hover:bg-gray-600 transition border border-gray-600 text-xs md:text-sm touch-feedback" 
+                             draggable="true" ondragstart="drag(event)" ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)" data-type="passive">
+                            Tidak memerlukan ATP
+                        </div>
+                        <div class="draggable-item bg-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-full hover:bg-gray-600 transition border border-gray-600 text-xs md:text-sm touch-feedback" 
+                             draggable="true" ondragstart="drag(event)" ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)" data-type="active">
+                            Melawan gradien konsentrasi
+                        </div>
+                        <div class="draggable-item bg-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-full hover:bg-gray-600 transition border border-gray-600 text-xs md:text-sm touch-feedback" 
+                             draggable="true" ondragstart="drag(event)" ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)" data-type="osmosis">
+                            Pergerakan air melintasi membran
+                        </div>
+                        <div class="draggable-item bg-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-full hover:bg-gray-600 transition border border-gray-600 text-xs md:text-sm touch-feedback" 
+                             draggable="true" ondragstart="drag(event)" ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)" data-type="passive">
+                            Dari tinggi ke rendah
+                        </div>
+                        <div class="draggable-item bg-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-full hover:bg-gray-600 transition border border-gray-600 text-xs md:text-sm touch-feedback" 
+                             draggable="true" ondragstart="drag(event)" ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)" data-type="active">
+                            Menggunakan protein pompa
+                        </div>
+                        <div class="draggable-item bg-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-full hover:bg-gray-600 transition border border-gray-600 text-xs md:text-sm touch-feedback" 
+                             draggable="true" ondragstart="drag(event)" ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)" data-type="osmosis">
+                            Memerlukan membran semi-permeabel
+                        </div>
+                        <div class="draggable-item bg-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-full hover:bg-gray-600 transition border border-gray-600 text-xs md:text-sm touch-feedback" 
+                             draggable="true" ondragstart="drag(event)" ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)" data-type="active">
+                            Contoh: Na⁺/K⁺ pump
+                        </div>
+                        <div class="draggable-item bg-gray-700 px-3 py-2 md:px-4 md:py-2 rounded-full hover:bg-gray-600 transition border border-gray-600 text-xs md:text-sm touch-feedback" 
+                             draggable="true" ondragstart="drag(event)" ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)" data-type="passive">
+                            Contoh: Difusi O₂
+                        </div>
+                    </div>
+                </div>
+
+                <div id="game-score" class="text-center mt-4 md:mt-6 hidden">
+                    <div class="text-3xl md:text-4xl mb-2">🎉</div>
+                    <div class="text-lg md:text-xl font-bold text-yellow-400">
+                        Skor: <span id="game-score-value">0</span>/8
+                    </div>
+                    <p id="game-message" class="text-gray-400 text-sm mt-2"></p>
+                    <button onclick="restartGame()" class="mt-4 px-6 py-2 bg-gradient-to-r from-green-500 to-blue-500 rounded-full font-semibold hover:scale-105 transition text-sm touch-feedback">
+                        Main Lagi 🔄
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 border-t border-gray-800 py-8 md:py-12">
+        <div class="max-w-7xl mx-auto px-4 md:px-6 text-center">
+            <div class="flex justify-center items-center gap-2 md:gap-3 mb-3 md:mb-4">
+                <div class="w-8 h-8 md:w-10 md:h-10 rounded-full gradient-bg flex items-center justify-center text-lg md:text-xl">🧬</div>
+                <span class="text-lg md:text-xl font-bold">Transport Membran 3D</span>
+            </div>
+            <p class="text-gray-500 text-xs md:text-sm mb-3 md:mb-4">Media pembelajaran interaktif untuk memahami mekanisme transport membran sel</p>
+            <div class="text-[10px] md:text-xs text-gray-600">
+                Materi dari dokumen pembelajaran Biologi • Dibuat untuk pembelajaran SMA/Kuliah
+            </div>
+        </div>
+    </footer>
+
+    <script>
+
+        // ==================== MOBILE MENU ====================
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        // ==================== SCROLL ANIMATIONS ====================
+        const observerOptions = { threshold: 0.1, rootMargin: "0px 0px -30px 0px" };
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.slide-in').forEach(el => observer.observe(el));
+
+        // ==================== PARTICLES BACKGROUND ====================
+        function createParticles() {
+            const container = document.getElementById('particles-bg');
+            const isMobile = window.innerWidth < 768;
+            const count = isMobile ? 20 : 40;
+
+            for (let i = 0; i < count; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const size = Math.random() * (isMobile ? 3 : 4) + 2;
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+                particle.style.background = `rgba(${100 + Math.random() * 155}, ${150 + Math.random() * 105}, 255, ${Math.random() * 0.5})`;
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animation = `float ${3 + Math.random() * 4}s ease-in-out infinite`;
+                particle.style.animationDelay = Math.random() * 2 + 's';
+                container.appendChild(particle);
+            }
+        }
+        createParticles();
+
+        // ==================== THREE.JS 3D SIMULATION ====================
+        let scene, camera, renderer, animationId;
+        let molecules = [];
+        let membraneGroup;
+        let currentSimulation = 'diffusion';
+        let proteinMesh;
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1f2937);
+            scene.fog = new THREE.Fog(0x1f2937, 10, 50);
+
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(0, 5, 15);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            const pointLight = new THREE.PointLight(0x3b82f6, 0.5);
+            pointLight.position.set(-10, 5, -5);
+            scene.add(pointLight);
+
+            createMembrane();
+            setSimulation('diffusion');
+
+            // Controls
+            let isDragging = false;
+            let previousPosition = { x: 0, y: 0 };
+
+            const startDrag = (x, y) => {
+                isDragging = true;
+                previousPosition = { x, y };
+            };
+
+            const moveDrag = (x, y) => {
+                if (!isDragging) return;
+                const deltaX = x - previousPosition.x;
+
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaX * 0.01;
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+
+                previousPosition = { x, y };
+            };
+
+            const endDrag = () => { isDragging = false; };
+
+            renderer.domElement.addEventListener('mousedown', e => startDrag(e.clientX, e.clientY));
+            renderer.domElement.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+            renderer.domElement.addEventListener('mouseup', endDrag);
+            renderer.domElement.addEventListener('mouseleave', endDrag);
+
+            renderer.domElement.addEventListener('touchstart', e => {
+                if (e.touches.length === 1) {
+                    startDrag(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: true });
+
+            renderer.domElement.addEventListener('touchmove', e => {
+                if (e.touches.length === 1) {
+                    moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: true });
+
+            renderer.domElement.addEventListener('touchend', endDrag);
+
+            renderer.domElement.addEventListener('wheel', e => {
+                e.preventDefault();
+                camera.position.z += e.deltaY * 0.01;
+                camera.position.z = Math.max(5, Math.min(30, camera.position.z));
+            }, { passive: false });
+
+            animate();
+        }
+
+        function createMembrane() {
+            membraneGroup = new THREE.Group();
+
+            const isMobile = window.innerWidth < 768;
+            const spacing = isMobile ? 1.5 : 1.2;
+            const rangeX = isMobile ? 5 : 8;
+            const rangeZ = isMobile ? 3 : 4;
+
+            const headGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+            const tailGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1.5, 8);
+
+            const headMaterial1 = new THREE.MeshPhongMaterial({ color: 0x3b82f6, shininess: 100 });
+            const headMaterial2 = new THREE.MeshPhongMaterial({ color: 0x60a5fa, shininess: 100 });
+            const tailMaterial = new THREE.MeshPhongMaterial({ color: 0x9ca3af });
+
+            for (let x = -rangeX; x <= rangeX; x += spacing) {
+                for (let z = -rangeZ; z <= rangeZ; z += spacing) {
+                    const head1 = new THREE.Mesh(headGeometry, headMaterial1);
+                    head1.position.set(x, 1, z);
+                    membraneGroup.add(head1);
+
+                    const tail1 = new THREE.Mesh(tailGeometry, tailMaterial);
+                    tail1.position.set(x, 0.3, z);
+                    membraneGroup.add(tail1);
+
+                    const head2 = new THREE.Mesh(headGeometry, headMaterial2);
+                    head2.position.set(x, -1, z);
+                    membraneGroup.add(head2);
+
+                    const tail2 = new THREE.Mesh(tailGeometry, tailMaterial);
+                    tail2.position.set(x, -0.3, z);
+                    membraneGroup.add(tail2);
+                }
+            }
+
+            scene.add(membraneGroup);
+        }
+
+        function createProtein() {
+            if (proteinMesh) {
+                membraneGroup.remove(proteinMesh);
+            }
+
+            const proteinGeometry = new THREE.BoxGeometry(1.5, 3, 1.5);
+            const proteinMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x22c55e, 
+                transparent: true, 
+                opacity: 0.8,
+                shininess: 100 
+            });
+            proteinMesh = new THREE.Mesh(proteinGeometry, proteinMaterial);
+            proteinMesh.position.set(0, 0, 0);
+            membraneGroup.add(proteinMesh);
+
+            const channelGeometry = new THREE.CylinderGeometry(0.3, 0.3, 3.5, 16);
+            const channelMaterial = new THREE.MeshPhongMaterial({ color: 0x14532d });
+            const channel = new THREE.Mesh(channelGeometry, channelMaterial);
+            channel.position.set(0, 0, 0);
+            membraneGroup.add(channel);
+        }
+
+        function createMolecule(x, y, z, color, size = 0.3) {
+            const geometry = new THREE.SphereGeometry(size, 16, 16);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: color, 
+                emissive: color,
+                emissiveIntensity: 0.3,
+                shininess: 100 
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+
+            mesh.userData = {
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.05,
+                    (Math.random() - 0.5) * 0.05,
+                    (Math.random() - 0.5) * 0.05
+                ),
+                originalY: y,
+                phase: Math.random() * Math.PI * 2
+            };
+
+            return mesh;
+        }
+
+        function clearMolecules() {
+            molecules.forEach(m => scene.remove(m));
+            molecules = [];
+        }
+
+        function setSimulation(type) {
+            currentSimulation = type;
+            clearMolecules();
+
+            document.querySelectorAll('[id^="btn-"]').forEach(btn => {
+                btn.classList.remove('bg-blue-500/20', 'bg-green-500/20', 'bg-purple-500/20', 
+                    'border-blue-500/50', 'border-green-500/50', 'border-purple-500/50', 
+                    'text-blue-300', 'text-green-300', 'text-purple-300');
+                btn.classList.add('bg-gray-700', 'border-gray-600', 'text-gray-300');
+            });
+
+            const title = document.getElementById('sim-title');
+            const desc = document.getElementById('sim-desc');
+            const legendProtein = document.getElementById('legend-protein');
+
+            if (type === 'diffusion') {
+                document.getElementById('btn-diffusion').classList.remove('bg-gray-700', 'border-gray-600', 'text-gray-300');
+                document.getElementById('btn-diffusion').classList.add('bg-blue-500/20', 'border-blue-500/50', 'text-blue-300');
+
+                title.textContent = 'Difusi Sederhana';
+                title.className = 'font-bold text-sm md:text-lg mb-1 md:mb-2 text-blue-400';
+                desc.textContent = 'Molekul kecil seperti O₂ dan CO₂ bergerak secara acak melintasi bilayer fosfolipid dari konsentrasi tinggi (atas) ke rendah (bawah) tanpa energi dan tanpa protein.';
+                legendProtein.classList.add('hidden');
+
+                for (let i = 0; i < 30; i++) {
+                    const x = (Math.random() - 0.5) * 12;
+                    const y = 3 + Math.random() * 4;
+                    const z = (Math.random() - 0.5) * 6;
+                    const mol = createMolecule(x, y, z, 0xfacc15, 0.25);
+                    molecules.push(mol);
+                    scene.add(mol);
+                }
+                for (let i = 0; i < 5; i++) {
+                    const x = (Math.random() - 0.5) * 12;
+                    const y = -3 - Math.random() * 2;
+                    const z = (Math.random() - 0.5) * 6;
+                    const mol = createMolecule(x, y, z, 0xfacc15, 0.25);
+                    molecules.push(mol);
+                    scene.add(mol);
+                }
+
+            } else if (type === 'osmosis') {
+                document.getElementById('btn-osmosis').classList.remove('bg-gray-700', 'border-gray-600', 'text-gray-300');
+                document.getElementById('btn-osmosis').classList.add('bg-green-500/20', 'border-green-500/50', 'text-green-300');
+
+                title.textContent = 'Osmosis';
+                title.className = 'font-bold text-sm md:text-lg mb-1 md:mb-2 text-green-400';
+                desc.textContent = 'Air (molekul biru kecil) bergerak melintasi membran semi-permeabel dari daerah konsentrasi air tinggi (rendah zat terlarut) ke daerah konsentrasi air rendah (tinggi zat terlarut).';
+                legendProtein.classList.remove('hidden');
+
+                for (let i = 0; i < 40; i++) {
+                    const x = (Math.random() - 0.5) * 14;
+                    const y = (Math.random() - 0.5) * 10;
+                    const z = (Math.random() - 0.5) * 8;
+                    const mol = createMolecule(x, y, z, 0x60a5fa, 0.2);
+                    molecules.push(mol);
+                    scene.add(mol);
+                }
+
+                for (let i = 0; i < 15; i++) {
+                    const x = 4 + Math.random() * 4;
+                    const y = (Math.random() - 0.5) * 8;
+                    const z = (Math.random() - 0.5) * 6;
+                    const mol = createMolecule(x, y, z, 0xf87171, 0.4);
+                    mol.userData.isSolute = true;
+                    molecules.push(mol);
+                    scene.add(mol);
+                }
+
+            } else if (type === 'active') {
+                document.getElementById('btn-active').classList.remove('bg-gray-700', 'border-gray-600', 'text-gray-300');
+                document.getElementById('btn-active').classList.add('bg-purple-500/20', 'border-purple-500/50', 'text-purple-300');
+
+                title.textContent = 'Transport Aktif (Na⁺/K⁺ Pump)';
+                title.className = 'font-bold text-sm md:text-lg mb-1 md:mb-2 text-purple-400';
+                desc.textContent = 'Pompa Na⁺/K⁺-ATPase menggunakan energi ATP untuk memompa 3 ion Na⁺ keluar dan 2 ion K⁺ masuk melawan gradien konsentrasi.';
+                legendProtein.classList.remove('hidden');
+
+                createProtein();
+
+                for (let i = 0; i < 8; i++) {
+                    const x = (Math.random() - 0.5) * 4;
+                    const y = -2 - Math.random() * 3;
+                    const z = (Math.random() - 0.5) * 4;
+                    const mol = createMolecule(x, y, z, 0xfacc15, 0.3);
+                    mol.userData.ionType = 'Na';
+                    mol.userData.targetY = 3 + Math.random() * 2;
+                    molecules.push(mol);
+                    scene.add(mol);
+                }
+
+                for (let i = 0; i < 6; i++) {
+                    const x = (Math.random() - 0.5) * 4;
+                    const y = 3 + Math.random() * 3;
+                    const z = (Math.random() - 0.5) * 4;
+                    const mol = createMolecule(x, y, z, 0xa78bfa, 0.3);
+                    mol.userData.ionType = 'K';
+                    mol.userData.targetY = -3 - Math.random() * 2;
+                    molecules.push(mol);
+                    scene.add(mol);
+                }
+
+                const atp = createMolecule(-3, 0, 2, 0xf472b6, 0.5);
+                atp.userData.isATP = true;
+                molecules.push(atp);
+                scene.add(atp);
+            }
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            const time = Date.now() * 0.001;
+
+            molecules.forEach((mol, i) => {
+                if (currentSimulation === 'diffusion') {
+                    mol.position.x += mol.userData.velocity.x + (Math.random() - 0.5) * 0.02;
+                    mol.position.z += mol.userData.velocity.z + (Math.random() - 0.5) * 0.02;
+
+                    if (mol.position.y > 1.5) {
+                        mol.position.y -= 0.01;
+                    } else if (mol.position.y < -1.5) {
+                        mol.position.y += 0.005;
+                    }
+
+                    if (Math.abs(mol.position.x) > 8) mol.userData.velocity.x *= -1;
+                    if (Math.abs(mol.position.z) > 4) mol.userData.velocity.z *= -1;
+
+                } else if (currentSimulation === 'osmosis') {
+                    if (mol.userData.isSolute) {
+                        mol.position.x = Math.max(2, mol.position.x);
+                        mol.position.y += Math.sin(time + mol.userData.phase) * 0.005;
+                    } else {
+                        const targetX = mol.position.x > 0 ? mol.position.x : mol.position.x + 0.02;
+                        mol.position.x += (targetX - mol.position.x) * 0.01;
+                        mol.position.y += Math.sin(time * 2 + i) * 0.003;
+
+                        if (Math.abs(mol.position.y) < 1.5 && Math.abs(mol.position.x) < 1) {
+                            mol.position.y += mol.position.y > 0 ? -0.02 : 0.02;
+                        }
+                    }
+
+                } else if (currentSimulation === 'active') {
+                    if (mol.userData.isATP) {
+                        mol.position.y = Math.sin(time * 3) * 0.5;
+                        mol.rotation.y += 0.02;
+                        mol.material.emissiveIntensity = Math.sin(time * 3) > 0.9 ? 1 : 0.3;
+                    } else if (mol.userData.ionType) {
+                        const dy = mol.userData.targetY - mol.position.y;
+                        const dx = -mol.position.x * 0.1;
+
+                        if (Math.abs(mol.position.x) < 1 && Math.abs(mol.position.y) < 2) {
+                            mol.position.y += dy * 0.02;
+                            mol.position.x *= 0.95;
+                            mol.position.z *= 0.95;
+                        } else {
+                            mol.position.x += dx * 0.05;
+                            mol.position.y += dy * 0.01;
+                        }
+
+                        if (Math.abs(dy) < 0.5 && Math.abs(mol.position.x) < 0.5) {
+                            if (mol.userData.ionType === 'Na') {
+                                mol.position.y = -3;
+                                mol.position.x = (Math.random() - 0.5) * 4;
+                            } else {
+                                mol.position.y = 3;
+                                mol.position.x = (Math.random() - 0.5) * 4;
+                            }
+                        }
+                    }
+                }
+
+                mol.rotation.x += 0.01;
+                mol.rotation.y += 0.01;
+            });
+
+            if (membraneGroup) {
+                membraneGroup.rotation.y = Math.sin(time * 0.2) * 0.1;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('canvas-container');
+            if (container && camera && renderer) {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            }
+        });
+
+        // ==================== QUIZ SYSTEM ====================
+        const quizData = [
+            {
+                question: "Perpindahan zat tanpa energi disebut...",
+                options: ["Transport aktif", "Difusi", "Endositosis", "Eksositosis"],
+                correct: 1,
+                explanation: "Difusi adalah perpindahan zat dari konsentrasi tinggi ke rendah tanpa energi."
+            },
+            {
+                question: "Osmosis adalah perpindahan...",
+                options: ["Ion", "Air", "Protein", "Glukosa"],
+                correct: 1,
+                explanation: "Osmosis adalah perpindahan air melalui membran semipermeabel dari konsentrasi zat terlarut rendah ke tinggi."
+            },
+            {
+                question: "Transport yang melawan gradien adalah...",
+                options: ["Difusi", "Osmosis", "Transport aktif", "Difusi terfasilitasi"],
+                correct: 2,
+                explanation: "Transport aktif membutuhkan energi ATP dan melawan gradien konsentrasi (rendah ke tinggi)."
+            },
+            {
+                question: "Sebuah sel dimasukkan ke larutan yang sangat asin. Apa yang paling mungkin terjadi?",
+                options: ["Sel membesar", "Sel tetap normal", "Sel menyusut karena kehilangan air", "Sel langsung mati tanpa perubahan"],
+                correct: 2,
+                explanation: "Larutan asin = hipertonik. Air keluar dari sel sehingga sel menyusut (krenasi pada hewan, plasmolisis pada tumbuhan)."
+            },
+            {
+                question: "Jika membran sel rusak dan tidak bisa mengatur zat yang masuk, dampaknya adalah...",
+                options: ["Sel bekerja lebih cepat", "Sel tetap normal", "Zat keluar-masuk tidak terkontrol", "Sel hanya kekurangan air"],
+                correct: 2,
+                explanation: "Membran sel berfungsi mengatur zat yang keluar masuk. Jika rusak, transport tidak terkontrol."
+            },
+            {
+                question: "Di mana proses transport membran terjadi?",
+                options: ["Inti sel", "Sitoplasma", "Membran sel", "Ribosom"],
+                correct: 2,
+                explanation: "Transport membran terjadi di membran sel karena membran sel bersifat semi-permeabel."
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let answered = false;
+
+        function loadQuestion() {
+            answered = false;
+            const q = quizData[currentQuestion];
+            document.getElementById('question-text').textContent = `${currentQuestion + 1}. ${q.question}`;
+            document.getElementById('progress-text').textContent = `${currentQuestion + 1}/${quizData.length}`;
+            document.getElementById('progress-bar').style.width = `${((currentQuestion + 1) / quizData.length) * 100}%`;
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            const labels = ['A', 'B', 'C', 'D'];
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-option w-full text-left p-3 md:p-4 rounded-xl bg-gray-700/50 border border-gray-600 hover:bg-gray-700 hover:border-blue-500/50 transition flex items-center gap-3 group touch-feedback';
+                btn.innerHTML = `
+                    <span class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gray-600 flex items-center justify-center text-xs md:text-sm font-bold group-hover:bg-blue-500 transition flex-shrink-0">${labels[idx]}</span>
+                    <span class="text-gray-300 group-hover:text-white text-sm md:text-base">${opt}</span>
+                `;
+                btn.onclick = () => checkAnswer(idx, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('feedback').classList.add('hidden');
+        }
+
+        function checkAnswer(selected, btnElement) {
+            if (answered) return;
+            answered = true;
+
+            const q = quizData[currentQuestion];
+            const isCorrect = selected === q.correct;
+
+            document.querySelectorAll('#options-container button').forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('opacity-50');
+            });
+
+            btnElement.classList.remove('opacity-50');
+
+            if (isCorrect) {
+                score += 10;
+                document.getElementById('score').textContent = score;
+                btnElement.classList.remove('bg-gray-700/50', 'border-gray-600');
+                btnElement.classList.add('bg-green-500/20', 'border-green-500', 'text-green-400');
+                btnElement.querySelector('span:first-child').classList.add('bg-green-500');
+
+                document.getElementById('feedback').className = 'mt-4 md:mt-6 p-3 md:p-4 rounded-xl border border-green-500/50 bg-green-500/10 text-center';
+                document.getElementById('feedback-text').textContent = '✅ Benar! ' + q.explanation;
+                document.getElementById('feedback-text').className = 'font-semibold text-sm md:text-base text-green-400';
+            } else {
+                btnElement.classList.remove('bg-gray-700/50', 'border-gray-600');
+                btnElement.classList.add('bg-red-500/20', 'border-red-500', 'text-red-400');
+                btnElement.querySelector('span:first-child').classList.add('bg-red-500');
+
+                // Highlight correct answer
+                const correctBtn = document.querySelectorAll('#options-container button')[q.correct];
+                correctBtn.classList.remove('opacity-50', 'bg-gray-700/50', 'border-gray-600');
+                correctBtn.classList.add('bg-green-500/20', 'border-green-500', 'text-green-400');
+                correctBtn.querySelector('span:first-child').classList.add('bg-green-500');
+
+                document.getElementById('feedback').className = 'mt-4 md:mt-6 p-3 md:p-4 rounded-xl border border-red-500/50 bg-red-500/10 text-center';
+                document.getElementById('feedback-text').textContent = '❌ Salah. ' + q.explanation;
+                document.getElementById('feedback-text').className = 'font-semibold text-sm md:text-base text-red-400';
+            }
+
+            document.getElementById('feedback').classList.remove('hidden');
+
+            if (currentQuestion === quizData.length - 1) {
+                document.getElementById('next-btn').textContent = 'Lihat Hasil 🏆';
+            }
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+            if (currentQuestion >= quizData.length) {
+                showResults();
+            } else {
+                loadQuestion();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('question-container').classList.add('hidden');
+            document.getElementById('feedback').classList.add('hidden');
+            document.getElementById('results').classList.remove('hidden');
+
+            document.getElementById('final-score').textContent = `${score}/60`;
+
+            let message = '';
+            if (score >= 50) {
+                message = '🌟 Luar biasa! Kamu sudah menguasai materi transport membran dengan sangat baik!';
+            } else if (score >= 30) {
+                message = '👍 Bagus! Pemahamanmu sudah cukup baik, tingkatkan lagi dengan membaca materi.';
+            } else {
+                message = '📚 Jangan menyerah! Pelajari lagi materi transport membran dan coba kuisnya lagi.';
+            }
+            document.getElementById('result-message').textContent = message;
+        }
+
+        function restartQuiz() {
+            currentQuestion = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('score').textContent = '0';
+            document.getElementById('question-container').classList.remove('hidden');
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('next-btn').textContent = 'Pertanyaan Selanjutnya →';
+            loadQuestion();
+        }
+
+        // ==================== DRAG AND DROP GAME ====================
+        let draggedElement = null;
+        let gameScore = 0;
+        let totalItems = 8;
+        let answeredItems = 0;
+
+        function dragEnter(e) {
+            e.preventDefault();
+            if (e.target.classList.contains('drop-zone')) {
+                e.target.classList.add('drag-over');
+            }
+        }
+
+        function dragLeave(e) {
+            if (e.target.classList.contains('drop-zone')) {
+                e.target.classList.remove('drag-over');
+            }
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            draggedElement = e.target;
+            e.dataTransfer.setData('text/plain', e.target.dataset.type);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function drop(e, category) {
+            e.preventDefault();
+            const dropZone = e.target.closest('.drop-zone');
+            if (!dropZone) return;
+
+            dropZone.classList.remove('drag-over');
+
+            const draggedType = e.dataTransfer.getData('text/plain');
+
+            if (draggedElement && draggedType === category) {
+                // Correct
+                dropZone.classList.add('correct');
+                draggedElement.style.opacity = '0.5';
+                draggedElement.setAttribute('draggable', 'false');
+                draggedElement.classList.add('cursor-not-allowed');
+                draggedElement.classList.remove('cursor-grab');
+
+                // Create a small indicator in the drop zone
+                const indicator = document.createElement('div');
+                indicator.className = 'text-xs text-green-400 mt-1';
+                indicator.textContent = '✓ ' + draggedElement.textContent;
+                dropZone.appendChild(indicator);
+
+                gameScore++;
+                answeredItems++;
+            } else {
+                // Wrong
+                dropZone.classList.add('wrong');
+                setTimeout(() => {
+                    dropZone.classList.remove('wrong');
+                }, 1000);
+                answeredItems++;
+            }
+
+            if (answeredItems >= totalItems) {
+                showGameResults();
+            }
+        }
+
+        // Touch events for mobile drag and drop
+        let touchDraggedElement = null;
+        let touchOffsetX = 0;
+        let touchOffsetY = 0;
+
+        function touchStart(e) {
+            const touch = e.touches[0];
+            touchDraggedElement = e.target;
+            const rect = e.target.getBoundingClientRect();
+            touchOffsetX = touch.clientX - rect.left;
+            touchOffsetY = touch.clientY - rect.top;
+
+            e.target.style.position = 'fixed';
+            e.target.style.zIndex = '1000';
+            e.target.style.left = (touch.clientX - touchOffsetX) + 'px';
+            e.target.style.top = (touch.clientY - touchOffsetY) + 'px';
+            e.target.style.width = rect.width + 'px';
+        }
+
+        function touchMove(e) {
+            if (!touchDraggedElement) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchDraggedElement.style.left = (touch.clientX - touchOffsetX) + 'px';
+            touchDraggedElement.style.top = (touch.clientY - touchOffsetY) + 'px';
+        }
+
+        function touchEnd(e) {
+            if (!touchDraggedElement) return;
+
+            const touch = e.changedTouches[0];
+            touchDraggedElement.style.position = '';
+            touchDraggedElement.style.zIndex = '';
+            touchDraggedElement.style.left = '';
+            touchDraggedElement.style.top = '';
+            touchDraggedElement.style.width = '';
+
+            // Check if dropped on a drop zone
+            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            const dropZone = elementBelow ? elementBelow.closest('.drop-zone') : null;
+
+            if (dropZone) {
+                const category = dropZone.dataset.category;
+                const draggedType = touchDraggedElement.dataset.type;
+
+                if (draggedType === category) {
+                    dropZone.classList.add('correct');
+                    touchDraggedElement.style.opacity = '0.5';
+                    touchDraggedElement.setAttribute('draggable', 'false');
+                    touchDraggedElement.classList.add('cursor-not-allowed');
+                    touchDraggedElement.classList.remove('cursor-grab');
+
+                    const indicator = document.createElement('div');
+                    indicator.className = 'text-xs text-green-400 mt-1';
+                    indicator.textContent = '✓ ' + touchDraggedElement.textContent;
+                    dropZone.appendChild(indicator);
+
+                    gameScore++;
+                    answeredItems++;
+                } else {
+                    dropZone.classList.add('wrong');
+                    setTimeout(() => {
+                        dropZone.classList.remove('wrong');
+                    }, 1000);
+                    answeredItems++;
+                }
+            }
+
+            touchDraggedElement = null;
+
+            if (answeredItems >= totalItems) {
+                showGameResults();
+            }
+        }
+
+        function showGameResults() {
+            document.getElementById('game-score').classList.remove('hidden');
+            document.getElementById('game-score-value').textContent = gameScore;
+
+            let message = '';
+            if (gameScore >= 7) {
+                message = '🌟 Sempurna! Kamu sudah ahli dalam mengklasifikasikan jenis transport membran!';
+            } else if (gameScore >= 5) {
+                message = '👍 Bagus! Kamu sudah memahami sebagian besar konsep transport membran.';
+            } else {
+                message = '📚 Pelajari lagi materinya dan coba lagi untuk meningkatkan pemahamanmu!';
+            }
+            document.getElementById('game-message').textContent = message;
+        }
+
+        function restartGame() {
+            gameScore = 0;
+            answeredItems = 0;
+            document.getElementById('game-score').classList.add('hidden');
+
+            // Reset drop zones
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+                zone.classList.remove('correct', 'wrong');
+                // Remove indicators
+                const indicators = zone.querySelectorAll('div.text-xs.text-green-400');
+                indicators.forEach(ind => ind.remove());
+            });
+
+            // Reset draggable items
+            document.querySelectorAll('.draggable-item').forEach(item => {
+                item.style.opacity = '1';
+                item.setAttribute('draggable', 'true');
+                item.classList.remove('cursor-not-allowed');
+                item.classList.add('cursor-grab');
+            });
+        }
+
+        // ==================== HERO 3D MINI SIMULATION ====================
+        function initHero3D() {
+            const container = document.getElementById('hero-3d');
+            if (!container) return;
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            const heroScene = new THREE.Scene();
+            heroScene.background = new THREE.Color(0x1f2937);
+
+            const heroCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+            heroCamera.position.set(0, 0, 8);
+
+            const heroRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            heroRenderer.setSize(width, height);
+            heroRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(heroRenderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            heroScene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0x667eea, 1);
+            dirLight.position.set(5, 5, 5);
+            heroScene.add(dirLight);
+            const purpleLight = new THREE.PointLight(0x764ba2, 0.8);
+            purpleLight.position.set(-5, -5, 5);
+            heroScene.add(purpleLight);
+
+            // Create cell membrane sphere
+            const sphereGeometry = new THREE.SphereGeometry(2.5, 32, 32);
+            const sphereMaterial = new THREE.MeshPhongMaterial({
+                color: 0x3b82f6,
+                transparent: true,
+                opacity: 0.3,
+                shininess: 100,
+                side: THREE.DoubleSide
+            });
+            const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+            heroScene.add(sphere);
+
+            // Add particles inside
+            const particles = [];
+            for (let i = 0; i < 20; i++) {
+                const pGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+                const pMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xfacc15,
+                    emissive: 0xfacc15,
+                    emissiveIntensity: 0.5
+                });
+                const p = new THREE.Mesh(pGeometry, pMaterial);
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const r = Math.random() * 2;
+                p.position.set(
+                    r * Math.sin(phi) * Math.cos(theta),
+                    r * Math.sin(phi) * Math.sin(theta),
+                    r * Math.cos(phi)
+                );
+                p.userData = {
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.02,
+                        (Math.random() - 0.5) * 0.02,
+                        (Math.random() - 0.5) * 0.02
+                    )
+                };
+                particles.push(p);
+                heroScene.add(p);
+            }
+
+            function animateHero() {
+                requestAnimationFrame(animateHero);
+
+                sphere.rotation.y += 0.005;
+                sphere.rotation.x += 0.002;
+
+                particles.forEach(p => {
+                    p.position.add(p.userData.velocity);
+                    const dist = p.position.length();
+                    if (dist > 2.3) {
+                        p.userData.velocity.multiplyScalar(-1);
+                    }
+                });
+
+                heroRenderer.render(heroScene, heroCamera);
+            }
+            animateHero();
+
+            window.addEventListener('resize', () => {
+                const newWidth = container.clientWidth;
+                const newHeight = container.clientHeight;
+                heroCamera.aspect = newWidth / newHeight;
+                heroCamera.updateProjectionMatrix();
+                heroRenderer.setSize(newWidth, newHeight);
+            });
+        }
+
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initThreeJS();
+            initHero3D();
+            loadQuestion();
+
+            // Smooth scroll for navigation
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
